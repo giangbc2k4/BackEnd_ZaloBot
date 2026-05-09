@@ -25,8 +25,8 @@ router.post('/webhook', async (req, res) => {
     const botToken = process.env.ZALO_OA_TOKEN // Biến env giữ nguyên tên, nhưng chứa token bot
     const geminiKey = process.env.GEMINI_API_KEY
 
-    if (!botToken || !geminiKey) {
-      console.error("Thiếu ZALO_OA_TOKEN hoặc GEMINI_API_KEY trong file .env")
+    if (!botToken) {
+      console.error("Thiếu ZALO_OA_TOKEN trong file cấu hình")
       return
     }
 
@@ -38,6 +38,11 @@ router.post('/webhook', async (req, res) => {
 
     // Xử lý khi user gửi ảnh
     if (msg.photo && msg.photo.length > 0) {
+      if (!geminiKey) {
+        await sendMessage(chatId, "⚠️ Bot chưa được cấu hình GEMINI_API_KEY nên không thể phân tích ảnh AI. Hãy thêm API Key để tiếp tục test nhé!", botToken)
+        return
+      }
+
       // Lấy ảnh lớn nhất (phần tử cuối)
       const fileId = msg.photo[msg.photo.length - 1].file_id
       
