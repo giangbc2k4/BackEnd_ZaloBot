@@ -9,7 +9,8 @@ export async function readMeterFromImage(imageUrl: string, apiKey: string) {
 
     // 2. Gọi Gemini API
     console.log("Đang gọi Gemini API...");
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+    // Thử sử dụng gemini-1.5-flash-latest hoặc gemini-1.5-pro
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`;
     
     const response = await fetch(url, {
       method: 'POST',
