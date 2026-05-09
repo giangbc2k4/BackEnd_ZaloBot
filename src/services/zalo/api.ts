@@ -23,6 +23,39 @@ export async function sendMessage(chatId: string, text: string, token: string) {
   }
 }
 
+/**
+ * Gửi ảnh qua Zalo Bot (dùng cho QR VietQR)
+ */
+export async function sendPhoto(chatId: string, photoUrl: string, caption: string, token: string) {
+  try {
+    const url = `https://bot-api.zaloplatforms.com/bot${token}/sendPhoto`;
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        chat_id: chatId,
+        photo: photoUrl,
+        caption: caption
+      })
+    });
+    
+    const data = await response.json() as any;
+    if (!data.ok) {
+      console.error('Lỗi khi gửi ảnh Zalo Bot:', data);
+      // Fallback: gửi text nếu ảnh lỗi
+      await sendMessage(chatId, `${caption}\n\n🔗 Link QR: ${photoUrl}`, token);
+    } else {
+      console.log('Đã gửi ảnh QR thành công cho chat_id:', chatId);
+    }
+  } catch (error) {
+    console.error('Exception khi gửi ảnh Zalo Bot:', error);
+    // Fallback
+    await sendMessage(chatId, `${caption}\n\n🔗 Link QR: ${photoUrl}`, token);
+  }
+}
+
 // Hàm phụ để lấy URL ảnh gốc từ file_id của Zalo
 export async function getFileUrl(fileId: string, token: string) {
   try {

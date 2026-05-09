@@ -2,6 +2,7 @@ import 'dotenv/config'
 import express from 'express'
 import cors from 'cors'
 import zaloRouter from './routes/zalo.js'
+import { startReminderJob } from './cron/reminderJob.js'
 
 const app = express()
 const PORT = process.env.PORT || 3001
@@ -34,4 +35,7 @@ app.use((_req, res) => {
 app.listen(PORT, () => {
   console.log(`🚀 NhaTroSmart API running at http://localhost:${PORT}`)
   console.log(`📋 Health check: http://localhost:${PORT}/api/health`)
+
+  // Khởi động cron job nhắc tiền hàng tháng
+  startReminderJob()
 })
