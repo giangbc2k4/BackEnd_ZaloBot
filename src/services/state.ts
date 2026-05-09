@@ -1,6 +1,6 @@
 import Redis from 'ioredis';
 
-export type BotState = 'IDLE' | 'WAIT_ELECTRIC' | 'WAIT_WATER' | 'WAIT_PAYMENT' | 'PAID';
+export type BotState = 'IDLE' | 'WAIT_PHONE' | 'WAIT_ELECTRIC' | 'WAIT_WATER' | 'WAIT_PAYMENT' | 'PAID';
 
 // ─── Fallback: In-memory store nếu chưa có Redis ───
 const memoryStore = new Map<string, string>();

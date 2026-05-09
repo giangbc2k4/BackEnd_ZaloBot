@@ -20,6 +20,46 @@ export async function getTenantProfileByChatId(chatId: string) {
 }
 
 /**
+ * Tìm người thuê bằng số điện thoại (chủ nhà đã nhập trên web)
+ */
+export async function findTenantByPhone(phone: string) {
+  // Chuẩn hóa SĐT: bỏ khoảng trắng, dấu chấm, dấu gạch
+  const cleanPhone = phone.replace(/[\s\.\-]/g, '');
+
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('*, contracts!inner(*, rooms(*))')
+    .eq('role', 'tenant')
+    .eq('contracts.status', 'active')
+    .or(`phone.eq.${cleanPhone},phone.eq.0${cleanPhone},phone.eq.+84${cleanPhone.replace(/^0/, '')}`)
+    .is('chat_id', null) // Chỉ tìm những ai chưa liên kết Zalo
+    .single();
+
+  if (error || !data) {
+    console.log(`Không tìm thấy tenant chưa liên kết cho SĐT ${cleanPhone}:`, error?.message);
+    return null;
+  }
+  return data;
+}
+
+/**
+ * Liên kết chat_id Zalo vào profile người thuê
+ */
+export async function linkChatIdToProfile(profileId: string, chatId: string) {
+  const { error } = await supabase
+    .from('profiles')
+    .update({ chat_id: chatId })
+    .eq('id', profileId);
+
+  if (error) {
+    console.error(`Lỗi liên kết chat_id cho profile ${profileId}:`, error);
+    return false;
+  }
+  console.log(`✅ Đã liên kết chat_id ${chatId} → profile ${profileId}`);
+  return true;
+}
+
+/**
  * Cập nhật hoặc chèn mới chỉ số điện/nước cho phòng trong tháng
  */
 export async function upsertMeterReading(params: {
