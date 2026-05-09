@@ -15,6 +15,9 @@ router.post('/webhook', async (req, res) => {
 
     const update = req.body
     
+    // Log toàn bộ body để debug
+    console.log("📥 Nhận được Webhook từ Zalo:", JSON.stringify(update, null, 2))
+
     // Zalo yêu cầu phản hồi HTTP 200 nhanh chóng
     res.json({ ok: true })
 
