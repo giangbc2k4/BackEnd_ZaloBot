@@ -44,12 +44,11 @@ router.post('/webhook', async (req, res) => {
       const tenant = await getTenantProfileByChatId(chatId)
 
       if (!tenant) {
-        // Chưa đăng ký → hướng dẫn
+        // Chưa liên kết phòng → vẫn chào và hướng dẫn gửi ảnh
         await sendMessage(chatId,
           `Xin chào ${msg.from?.display_name || 'bạn'}! 👋\n` +
           `Mình là Bot quản lý nhà trọ.\n\n` +
-          `Hiện tại tài khoản Zalo của bạn chưa được liên kết với phòng nào.\n` +
-          `Hãy liên hệ chủ nhà để được cấp quyền truy cập nhé!`,
+          `Bạn có thể gửi ảnh đồng hồ điện/nước để test AI đọc số nhé! 📸`,
           botToken
         )
         return
@@ -77,17 +76,26 @@ router.post('/webhook', async (req, res) => {
       const imageUrl = msg.photo_url
       const state = await getState(chatId)
 
-      // Kiểm tra tenant
+      // Kiểm tra tenant (nếu có DB)
       const tenant = await getTenantProfileByChatId(chatId)
-      if (!tenant) {
-        await sendMessage(chatId, "❌ Tài khoản chưa được liên kết. Liên hệ chủ nhà nhé!", botToken)
-        return
-      }
-
-      const contract = tenant.contracts?.[0]
+      const contract = tenant?.contracts?.[0]
       const room = contract?.rooms
-      if (!contract || !room) {
-        await sendMessage(chatId, "❌ Không tìm thấy hợp đồng phòng đang hoạt động.", botToken)
+
+      // Nếu chưa liên kết phòng → vẫn chạy PoC mode (đọc ảnh trả số)
+      if (!tenant || !contract || !room) {
+        // PoC Mode: chỉ đọc số và trả về
+        await sendMessage(chatId, "⏳ Đang phân tích ảnh bằng AI...", botToken)
+        const result = await readMeterFromImage(imageUrl, geminiKey)
+        if (result && result.chi_so) {
+          await sendMessage(chatId,
+            `✅ Đọc được chỉ số: ${result.chi_so}\n\n` +
+            `ℹ️ Tài khoản chưa liên kết phòng nên bot chỉ đọc số.\n` +
+            `Liên hệ chủ nhà để được gán phòng và dùng đầy đủ tính năng!`,
+            botToken
+          )
+        } else {
+          await sendMessage(chatId, "❌ Không thể đọc được số từ ảnh này. Chụp rõ nét hơn nhé!", botToken)
+        }
         return
       }
 
