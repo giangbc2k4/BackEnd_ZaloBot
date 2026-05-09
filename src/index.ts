@@ -1,8 +1,6 @@
 import 'dotenv/config'
 import express from 'express'
 import cors from 'cors'
-import housesRouter from './routes/houses.js'
-import roomsRouter from './routes/rooms.js'
 import zaloRouter from './routes/zalo.js'
 
 const app = express()
@@ -25,8 +23,6 @@ app.get('/api/health', (_req, res) => {
 })
 
 // Routes
-app.use('/api/houses', housesRouter)
-app.use('/api/rooms', roomsRouter)
 app.use('/zalo', zaloRouter)
 
 // 404 handler
