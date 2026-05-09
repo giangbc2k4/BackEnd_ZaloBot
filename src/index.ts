@@ -2,6 +2,7 @@ import 'dotenv/config'
 import express from 'express'
 import cors from 'cors'
 import zaloRouter from './routes/zalo.js'
+import ocrRouter from './routes/ocr.js'
 import { startReminderJob } from './cron/reminderJob.js'
 
 const app = express()
@@ -12,7 +13,7 @@ app.use(cors({
   origin: process.env.CLIENT_URL || 'http://localhost:5173',
   credentials: true,
 }))
-app.use(express.json())
+app.use(express.json({ limit: '10mb' })) // 10mb cho upload ảnh base64
 
 // Health check
 app.get('/api/health', (_req, res) => {
@@ -25,6 +26,7 @@ app.get('/api/health', (_req, res) => {
 
 // Routes
 app.use('/zalo', zaloRouter)
+app.use('/api/ocr', ocrRouter)
 
 // 404 handler
 app.use((_req, res) => {
