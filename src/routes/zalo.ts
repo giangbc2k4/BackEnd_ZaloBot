@@ -33,29 +33,22 @@ router.post('/webhook', async (req, res) => {
       return
     }
 
-    // Xử lý khi user gửi text (dành cho bot chào hỏi)
-    if (msg.text) {
-      const text = msg.text.toLowerCase().trim()
-      await sendMessage(chatId, `Chào bạn, bạn vừa gửi: "${text}". Hãy gửi cho tôi ảnh đồng hồ điện/nước để test nhé!`, botToken)
+    // Xử lý khi user gửi text
+    if (update.event_name === 'message.text.received' || msg.text) {
+      const text = msg.text ? msg.text.toLowerCase().trim() : ""
+      if (text) {
+        await sendMessage(chatId, `Chào bạn, bạn vừa gửi: "${text}". Hãy gửi cho tôi ảnh đồng hồ điện/nước để test nhé!`, botToken)
+      }
     }
 
     // Xử lý khi user gửi ảnh
-    if (msg.photo && msg.photo.length > 0) {
+    if (update.event_name === 'message.image.received' && msg.photo_url) {
       if (!geminiKey) {
         await sendMessage(chatId, "⚠️ Bot chưa được cấu hình GEMINI_API_KEY nên không thể phân tích ảnh AI. Hãy thêm API Key để tiếp tục test nhé!", botToken)
         return
       }
-
-      // Lấy ảnh lớn nhất (phần tử cuối)
-      const fileId = msg.photo[msg.photo.length - 1].file_id
       
-      // Lấy URL thực tế của ảnh
-      const imageUrl = await getFileUrl(fileId, botToken)
-      
-      if (!imageUrl) {
-        await sendMessage(chatId, "❌ Không thể tải được ảnh từ hệ thống Zalo. Vui lòng thử lại.", botToken)
-        return
-      }
+      const imageUrl = msg.photo_url
 
       // Phản hồi tạm thời để user biết bot đang xử lý
       await sendMessage(chatId, "⏳ Đang phân tích ảnh đồng hồ bằng AI, vui lòng đợi...", botToken)
