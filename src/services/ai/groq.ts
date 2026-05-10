@@ -47,3 +47,91 @@ export async function checkGroqKey(apiKey: string) {
     return `❌ Lỗi kiểm tra Groq: ${error.message}`;
   }
 }
+
+let lastCallTime = 0;
+let isBackupKeyExhausted = false;
+
+function getGroqKey() {
+  const mainKey = process.env.GROQ_API_KEY;
+  const backupKey = process.env.GROQ_API_KEY_BACKUP;
+  
+  if (isBackupKeyExhausted) return mainKey; 
+  if (process.env.GROQ_KEY_EXHAUSTED === 'true') return backupKey || mainKey;
+  return mainKey;
+}
+
+export async function readMeterFromImageGroq(imageUrl: string) {
+  try {
+    console.log("Đang gọi Groq API...", imageUrl);
+    const apiKey = getGroqKey();
+    if (!apiKey) {
+      console.error("Thiếu GROQ_API_KEY. Vui lòng thêm vào .env");
+      return null;
+    }
+
+    const now = Date.now();
+    const timeSinceLast = now - lastCallTime;
+    if (timeSinceLast < 2100) {
+      await new Promise(r => setTimeout(r, 2100 - timeSinceLast));
+    }
+    lastCallTime = Date.now();
+
+    const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        model: 'llama-3.2-90b-vision-preview',
+        messages: [
+          {
+            role: 'user',
+            content: [
+              {
+                type: 'text',
+                text: 'Đây là ảnh đồng hồ điện/nước. Đọc chỉ số trên mặt đồng hồ và trả về định dạng JSON duy nhất, ví dụ: {"chi_so": 12345}. Không giải thích gì thêm, chỉ trả về chuỗi JSON.'
+              },
+              {
+                type: 'image_url',
+                image_url: {
+                  url: imageUrl
+                }
+              }
+            ]
+          }
+        ],
+        temperature: 0.1
+      })
+    });
+
+    const data = await response.json();
+    if (!response.ok) {
+      console.error("Groq API Error:", data.error);
+      
+      // Basic fallback logic for rate limits
+      if (data.error?.message?.includes('Rate limit') || data.error?.code === 'rate_limit_exceeded') {
+        if (process.env.GROQ_API_KEY_BACKUP && process.env.GROQ_KEY_EXHAUSTED !== 'true') {
+          console.log("Groq quota exceeded. Switching to backup key...");
+          process.env.GROQ_KEY_EXHAUSTED = 'true';
+          // Try one more time with backup key
+          return await readMeterFromImageGroq(imageUrl);
+        }
+      }
+      return null;
+    }
+
+    const text = data.choices?.[0]?.message?.content || '';
+    console.log("Groq trả về nguyên bản:", text);
+    
+    const cleanText = text.replace(/```json/g, '').replace(/```/g, '').trim();
+    const match = cleanText.match(/\{[\s\S]*\}/);
+    if (match) {
+        return JSON.parse(match[0]);
+    }
+    return JSON.parse(cleanText);
+  } catch (error) {
+    console.error("Lỗi khi đọc ảnh bằng Groq:", error);
+    return null;
+  }
+}
