@@ -1,5 +1,6 @@
 import { Router } from 'express'
 import { readMeterFromImage, checkGeminiKey } from '../services/ai/gemini.js'
+import { checkGroqKey } from '../services/ai/groq.js'
 import { sendMessage, sendPhoto } from '../services/zalo/api.js'
 import { getState, setState } from '../services/state.js'
 import { getTenantProfileByChatId, findTenantByPhone, linkChatIdToProfile, upsertMeterReading, calculateInvoice } from '../services/db.js'
@@ -36,7 +37,7 @@ router.post('/webhook', async (req, res) => {
       const text = (msg.text || '').trim()
       if (!text) return
 
-      // Lệnh kiểm tra API Key: /checkapi AIzaSy...
+      // Lệnh kiểm tra API Key: /checkapi AIzaSy... hoặc /checkapi gsk_...
       if (text.startsWith('/checkapi ')) {
         const testKey = text.replace('/checkapi ', '').trim()
         if (testKey.length < 20) {
@@ -44,7 +45,14 @@ router.post('/webhook', async (req, res) => {
           return
         }
         await sendMessage(chatId, "⏳ Đang kiểm tra cấu hình API Key...", botToken)
-        const resultMsg = await checkGeminiKey(testKey)
+        
+        let resultMsg = ''
+        if (testKey.startsWith('gsk_')) {
+          resultMsg = await checkGroqKey(testKey)
+        } else {
+          resultMsg = await checkGeminiKey(testKey)
+        }
+        
         await sendMessage(chatId, resultMsg, botToken)
         return
       }
