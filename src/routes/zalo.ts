@@ -1,5 +1,5 @@
 import { Router } from 'express'
-import { readMeterFromImage } from '../services/ai/gemini.js'
+import { readMeterFromImage, checkGeminiKey } from '../services/ai/gemini.js'
 import { sendMessage, sendPhoto } from '../services/zalo/api.js'
 import { getState, setState } from '../services/state.js'
 import { getTenantProfileByChatId, findTenantByPhone, linkChatIdToProfile, upsertMeterReading, calculateInvoice } from '../services/db.js'
@@ -35,6 +35,19 @@ router.post('/webhook', async (req, res) => {
     if (update.event_name === 'message.text.received' || msg.text) {
       const text = (msg.text || '').trim()
       if (!text) return
+
+      // Lệnh kiểm tra API Key: /checkapi AIzaSy...
+      if (text.startsWith('/checkapi ')) {
+        const testKey = text.replace('/checkapi ', '').trim()
+        if (testKey.length < 20) {
+          await sendMessage(chatId, "❌ Key không hợp lệ.", botToken)
+          return
+        }
+        await sendMessage(chatId, "⏳ Đang kiểm tra cấu hình API Key...", botToken)
+        const resultMsg = await checkGeminiKey(testKey)
+        await sendMessage(chatId, resultMsg, botToken)
+        return
+      }
 
       const state = await getState(chatId)
 

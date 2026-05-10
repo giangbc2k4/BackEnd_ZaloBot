@@ -99,3 +99,36 @@ export async function readMeterFromImage(imageUrl: string) {
     return null;
   }
 }
+
+export async function checkGeminiKey(apiKey: string) {
+  try {
+    const ai = new GoogleGenAI({ apiKey });
+    let msg = '🔍 Kết quả kiểm tra API Key:\n\n';
+    
+    // Test 1.5 Flash 8B (nhẹ nhất)
+    try {
+      await ai.models.generateContent({ model: 'gemini-1.5-flash-8b', contents: 'Hi' });
+      msg += '✅ gemini-1.5-flash-8b: Hoạt động tốt!\n';
+    } catch (e: any) {
+      const eMsg = e.message || '';
+      if (eMsg.includes('429') || eMsg.includes('Quota exceeded')) msg += '⚠️ gemini-1.5-flash-8b: Hết hạn mức (429)\n';
+      else if (eMsg.includes('limit: 0')) msg += '❌ gemini-1.5-flash-8b: Bị khoá (limit: 0)\n';
+      else msg += `❌ gemini-1.5-flash-8b: Lỗi (${eMsg.substring(0, 50)}...)\n`;
+    }
+
+    // Test 2.0 Flash
+    try {
+      await ai.models.generateContent({ model: 'gemini-2.0-flash', contents: 'Hi' });
+      msg += '✅ gemini-2.0-flash: Hoạt động tốt!\n';
+    } catch (e: any) {
+      const eMsg = e.message || '';
+      if (eMsg.includes('429') || eMsg.includes('Quota exceeded')) msg += '⚠️ gemini-2.0-flash: Hết hạn mức (429)\n';
+      else if (eMsg.includes('limit: 0')) msg += '❌ gemini-2.0-flash: Bị khoá (limit: 0)\n';
+      else msg += `❌ gemini-2.0-flash: Lỗi (${eMsg.substring(0, 50)}...)\n`;
+    }
+
+    return msg;
+  } catch (error: any) {
+    return `❌ Lỗi kiểm tra: ${error.message}`;
+  }
+}
