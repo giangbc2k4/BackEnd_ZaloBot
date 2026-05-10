@@ -49,12 +49,20 @@ export async function callGeminiSafe(prompt: string, mimeType: string, base64Dat
     return await makeRequest(getGeminiKey() as string);
   } catch (err: any) {
     const errMsg = err.message || '';
+    console.error(`[Gemini API Error] Original: ${errMsg}`);
     
     if (errMsg.includes('429') || errMsg.includes('Quota exceeded') || errMsg.includes('RESOURCE_EXHAUSTED')) {
-      if (errMsg.includes('limit: 0') || (errMsg.includes('Quota exceeded') && process.env.GEMINI_API_KEY_BACKUP)) {
+      const hasBackupKey = !!process.env.GEMINI_API_KEY_BACKUP;
+      
+      if ((errMsg.includes('limit: 0') || errMsg.includes('Quota exceeded')) && hasBackupKey && process.env.GEMINI_KEY_EXHAUSTED !== 'true') {
         console.log("Main API Key exhausted quota or limit 0, switching to Backup Key...");
         process.env.GEMINI_KEY_EXHAUSTED = 'true';
-        return await makeRequest(getGeminiKey() as string);
+        try {
+          return await makeRequest(getGeminiKey() as string);
+        } catch (fallbackErr: any) {
+          console.error(`[Gemini API Error] Fallback key also failed: ${fallbackErr.message}`);
+          throw fallbackErr;
+        }
       }
 
       const match = errMsg.match(/retry in ([\d.]+)s/);
