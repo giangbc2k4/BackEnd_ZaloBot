@@ -40,7 +40,7 @@ Nếu không đọc được trường nào thì để chuỗi rỗng "".
 CHỈ TRẢ VỀ JSON, KHÔNG trả về gì khác.`
 
     const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
+      model: 'gemini-2.0-flash',
       contents: [{
         role: 'user',
         parts: [
