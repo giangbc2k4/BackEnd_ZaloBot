@@ -135,3 +135,91 @@ export async function readMeterFromImageGroq(imageUrl: string) {
     return null;
   }
 }
+
+export async function readCCCDFromImageGroq(imageBase64: string, mimeType: string, imageUrl?: string) {
+  try {
+    console.log("Đang gọi Groq API (OCR CCCD)...");
+    const apiKey = getGroqKey();
+    if (!apiKey) {
+      throw new Error("Thiếu GROQ_API_KEY");
+    }
+
+    const now = Date.now();
+    const timeSinceLast = now - lastCallTime;
+    if (timeSinceLast < 2100) {
+      await new Promise(r => setTimeout(r, 2100 - timeSinceLast));
+    }
+    lastCallTime = Date.now();
+
+    const prompt = `Bạn là hệ thống OCR chuyên đọc Căn cước công dân (CCCD) Việt Nam.
+Hãy đọc thông tin từ ảnh CCCD này và trả về JSON với các trường sau:
+{
+  "number": "Số CCCD (12 chữ số)",
+  "full_name": "Họ và tên (viết HOA)",
+  "dob": "Ngày sinh (dd/mm/yyyy)",
+  "gender": "Nam hoặc Nữ",
+  "nationality": "Quốc tịch",
+  "place_of_origin": "Quê quán",
+  "place_of_residence": "Nơi thường trú",
+  "expiry_date": "Có giá trị đến (dd/mm/yyyy)",
+  "issued_date": "Ngày cấp nếu có (dd/mm/yyyy)"
+}
+
+Nếu không đọc được trường nào thì để chuỗi rỗng "".
+CHỈ TRẢ VỀ JSON, KHÔNG trả về gì khác.`;
+
+    let imageContent: any;
+    if (imageUrl) {
+        imageContent = { url: imageUrl };
+    } else {
+        const mime = mimeType || 'image/jpeg';
+        imageContent = { url: `data:${mime};base64,${imageBase64}` };
+    }
+
+    const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        model: 'meta-llama/llama-4-scout-17b-16e-instruct',
+        messages: [
+          {
+            role: 'user',
+            content: [
+              { type: 'text', text: prompt },
+              { type: 'image_url', image_url: imageContent }
+            ]
+          }
+        ],
+        temperature: 0.1
+      })
+    });
+
+    const data = await response.json();
+    if (!response.ok) {
+      console.error("Groq API Error:", data.error);
+      if (data.error?.message?.includes('Rate limit') || data.error?.code === 'rate_limit_exceeded') {
+        if (process.env.GROQ_API_KEY_BACKUP && process.env.GROQ_KEY_EXHAUSTED !== 'true') {
+          process.env.GROQ_KEY_EXHAUSTED = 'true';
+          return await readCCCDFromImageGroq(imageBase64, mimeType, imageUrl);
+        }
+      }
+      throw new Error(data.error?.message || 'Groq API Error');
+    }
+
+    const text = data.choices?.[0]?.message?.content || '';
+    console.log('[OCR CCCD] Groq raw:', text);
+
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) {
+      throw new Error('Không đọc được thông tin từ ảnh');
+    }
+
+    return JSON.parse(jsonMatch[0]);
+  } catch (error) {
+    console.error("Lỗi khi đọc CCCD bằng Groq:", error);
+    throw error;
+  }
+}
