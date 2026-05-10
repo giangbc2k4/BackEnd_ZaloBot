@@ -1,5 +1,5 @@
 import { Router } from 'express'
-import { GoogleGenAI } from '@google/genai'
+import { callGeminiSafe } from '../services/ai/gemini.js'
 
 const router = Router()
 
@@ -20,8 +20,6 @@ router.post('/cccd', async (req, res) => {
       return res.status(400).json({ success: false, error: 'Thiếu imageBase64' })
     }
 
-    const ai = new GoogleGenAI({ apiKey: geminiKey })
-
     const prompt = `Bạn là hệ thống OCR chuyên đọc Căn cước công dân (CCCD) Việt Nam.
 Hãy đọc thông tin từ ảnh CCCD này và trả về JSON với các trường sau:
 {
@@ -39,18 +37,8 @@ Hãy đọc thông tin từ ảnh CCCD này và trả về JSON với các trư�
 Nếu không đọc được trường nào thì để chuỗi rỗng "".
 CHỈ TRẢ VỀ JSON, KHÔNG trả về gì khác.`
 
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.0-flash',
-      contents: [{
-        role: 'user',
-        parts: [
-          { text: prompt },
-          { inlineData: { mimeType: mimeType || 'image/jpeg', data: imageBase64 } }
-        ]
-      }]
-    })
-
-    const text = response.text || ''
+    const response = await callGeminiSafe(prompt, mimeType || 'image/jpeg', imageBase64)
+    const text = response.candidates?.[0]?.content?.parts?.[0]?.text || ''
     console.log('[OCR CCCD] Gemini raw:', text)
 
     // Parse JSON từ response
