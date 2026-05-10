@@ -130,7 +130,7 @@ router.post('/webhook', async (req, res) => {
       // Nếu chưa liên kết → PoC mode
       if (!tenant || !contract || !room) {
         await sendMessage(chatId, "⏳ Đang phân tích ảnh bằng AI...", botToken)
-        const result = await readMeterFromImage(imageUrl, geminiKey)
+        const result = await readMeterFromImage(imageUrl)
         if (result && result.chi_so) {
           await sendMessage(chatId,
             `✅ Đọc được chỉ số: ${result.chi_so}\n\n` +
@@ -151,7 +151,7 @@ router.post('/webhook', async (req, res) => {
       // ── STATE: WAIT_ELECTRIC ──
       if (state === 'WAIT_ELECTRIC') {
         await sendMessage(chatId, "⏳ Đang đọc chỉ số đồng hồ ĐIỆN...", botToken)
-        const result = await readMeterFromImage(imageUrl, geminiKey)
+        const result = await readMeterFromImage(imageUrl)
         if (!result || !result.chi_so) {
           await sendMessage(chatId, "❌ Không đọc được số. Chụp rõ nét hơn rồi gửi lại nhé!", botToken)
           return
@@ -169,7 +169,7 @@ router.post('/webhook', async (req, res) => {
       // ── STATE: WAIT_WATER ──
       if (state === 'WAIT_WATER') {
         await sendMessage(chatId, "⏳ Đang đọc chỉ số đồng hồ NƯỚC...", botToken)
-        const result = await readMeterFromImage(imageUrl, geminiKey)
+        const result = await readMeterFromImage(imageUrl)
         if (!result || !result.chi_so) {
           await sendMessage(chatId, "❌ Không đọc được số. Chụp rõ nét hơn rồi gửi lại nhé!", botToken)
           return
@@ -194,7 +194,7 @@ router.post('/webhook', async (req, res) => {
 
       // ── STATE: IDLE → đọc số thôi ──
       await sendMessage(chatId, "⏳ Đang phân tích ảnh bằng AI...", botToken)
-      const result = await readMeterFromImage(imageUrl, geminiKey)
+      const result = await readMeterFromImage(imageUrl)
       if (result && result.chi_so) {
         await sendMessage(chatId,
           `✅ Đọc được chỉ số: ${result.chi_so}\n\nℹ️ Bot sẽ nhắc bạn vào đầu tháng để ghi nhận chính thức!`,
