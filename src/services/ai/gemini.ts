@@ -17,7 +17,7 @@ function getGeminiKey() {
 }
 
 export async function callGeminiSafe(prompt: string, mimeType: string, base64Data: string): Promise<any> {
-  const model = 'gemini-1.5-flash';
+  const model = 'gemini-1.5-flash-latest';
   
   // Tối thiểu 4 giây giữa các lần gọi (15 req/phút = 1 req/4s)
   const now = Date.now();
