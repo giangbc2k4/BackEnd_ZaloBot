@@ -165,7 +165,9 @@ Hãy đọc thông tin từ ảnh CCCD này và trả về JSON với các trư�
   "issued_date": "Ngày cấp (nằm ở mặt sau, dưới chữ 'Ngày, tháng, năm', định dạng dd/mm/yyyy). Chú ý tìm kỹ ngày cấp kể cả khi nó nằm ở góc nhỏ."
 }
 
-Nếu không đọc được trường nào thì để chuỗi rỗng "".
+LƯU Ý QUAN TRỌNG:
+1. Nếu không đọc được trường nào thì để chuỗi rỗng "".
+2. Đối với trường "place_of_origin" và "place_of_residence", HÃY TỰ ĐỘNG SỬA LỖI CHÍNH TẢ dựa trên danh mục Tỉnh/Thành phố, Quận/Huyện, Phường/Xã có thật của Việt Nam (Ví dụ: "Hà Nôi" -> "Hà Nội", "Thái Binh" -> "Thái Bình").
 CHỈ TRẢ VỀ JSON, KHÔNG trả về gì khác.`;
 
     const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
