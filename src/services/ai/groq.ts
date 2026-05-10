@@ -136,7 +136,7 @@ export async function readMeterFromImageGroq(imageUrl: string) {
   }
 }
 
-export async function readCCCDFromImageGroq(imageBase64: string, mimeType: string, imageUrl?: string) {
+export async function readCCCDFromImageGroq(imageUrl: string) {
   try {
     console.log("Đang gọi Groq API (OCR CCCD)...");
     const apiKey = getGroqKey();
@@ -162,19 +162,11 @@ Hãy đọc thông tin từ ảnh CCCD này và trả về JSON với các trư�
   "place_of_origin": "Quê quán",
   "place_of_residence": "Nơi thường trú",
   "expiry_date": "Có giá trị đến (dd/mm/yyyy)",
-  "issued_date": "Ngày cấp nếu có (dd/mm/yyyy)"
+  "issued_date": "Ngày cấp (nằm ở mặt sau, dưới chữ 'Ngày, tháng, năm', định dạng dd/mm/yyyy). Chú ý tìm kỹ ngày cấp kể cả khi nó nằm ở góc nhỏ."
 }
 
 Nếu không đọc được trường nào thì để chuỗi rỗng "".
 CHỈ TRẢ VỀ JSON, KHÔNG trả về gì khác.`;
-
-    let imageContent: any;
-    if (imageUrl) {
-        imageContent = { url: imageUrl };
-    } else {
-        const mime = mimeType || 'image/jpeg';
-        imageContent = { url: `data:${mime};base64,${imageBase64}` };
-    }
 
     const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST',
@@ -189,7 +181,7 @@ CHỈ TRẢ VỀ JSON, KHÔNG trả về gì khác.`;
             role: 'user',
             content: [
               { type: 'text', text: prompt },
-              { type: 'image_url', image_url: imageContent }
+              { type: 'image_url', image_url: { url: imageUrl } }
             ]
           }
         ],
@@ -203,7 +195,7 @@ CHỈ TRẢ VỀ JSON, KHÔNG trả về gì khác.`;
       if (data.error?.message?.includes('Rate limit') || data.error?.code === 'rate_limit_exceeded') {
         if (process.env.GROQ_API_KEY_BACKUP && process.env.GROQ_KEY_EXHAUSTED !== 'true') {
           process.env.GROQ_KEY_EXHAUSTED = 'true';
-          return await readCCCDFromImageGroq(imageBase64, mimeType, imageUrl);
+          return await readCCCDFromImageGroq(imageUrl);
         }
       }
       throw new Error(data.error?.message || 'Groq API Error');

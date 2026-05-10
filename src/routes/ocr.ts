@@ -15,12 +15,12 @@ router.post('/cccd', async (req, res) => {
       return res.status(500).json({ success: false, error: 'Thiếu GROQ_API_KEY' })
     }
 
-    const { imageBase64, mimeType, imageUrl } = req.body
-    if (!imageBase64 && !imageUrl) {
-      return res.status(400).json({ success: false, error: 'Thiếu imageBase64 hoặc imageUrl' })
+    const { imageUrl } = req.body
+    if (!imageUrl) {
+      return res.status(400).json({ success: false, error: 'Thiếu imageUrl' })
     }
 
-    const data = await readCCCDFromImageGroq(imageBase64 || '', mimeType, imageUrl)
+    const data = await readCCCDFromImageGroq(imageUrl)
     return res.json({ success: true, data })
   } catch (error: any) {
     console.error('[OCR CCCD] Error:', error)
