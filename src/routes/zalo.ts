@@ -3,9 +3,103 @@ import { checkGeminiKey } from '../services/ai/gemini.js'
 import { checkGroqKey, readMeterFromImageGroq } from '../services/ai/groq.js'
 import { sendMessage } from '../services/zalo/api.js'
 import { getState, setState } from '../services/state.js'
-import { getTenantProfileByChatId, findTenantByPhone, linkChatIdToProfile, upsertMeterReading, getMeterReading } from '../services/db.js'
+import { getTenantProfileByChatId, findTenantByPhone, linkChatIdToProfile, upsertMeterReading, getMeterReading, getInvoiceForZalo } from '../services/db.js'
+import { supabase } from '../config/supabase.js'
 
 const router = Router()
+
+const formatCurrency = (amount: number) =>
+  new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount || 0)
+
+const sendMessageStrict = async (chatId: string, text: string, token: string) => {
+  const response = await fetch(`https://bot-api.zaloplatforms.com/bot${token}/sendMessage`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ chat_id: chatId, text }),
+  })
+  const data = await response.json() as any
+  if (!response.ok || !data.ok) {
+    throw new Error(data?.description || data?.error || 'Zalo API không chấp nhận tin nhắn')
+  }
+}
+
+const buildInvoiceMessage = (invoice: any) => {
+  const tenant = invoice.contracts?.tenant_records
+  const room = invoice.rooms
+  const house = room?.houses
+  const remaining = Number(invoice.total_amount || 0) - Number(invoice.paid_amount || 0)
+  const dueDate = new Date(invoice.created_at)
+  dueDate.setDate(dueDate.getDate() + 5)
+
+  const lineItems = Array.isArray(invoice.line_items) && invoice.line_items.length
+    ? invoice.line_items
+    : [
+        { name: 'Tiền phòng', total: Number(invoice.rent_amount || 0) },
+        { name: 'Tiền điện', total: Number(invoice.electric_amount || 0) },
+        { name: 'Tiền nước', total: Number(invoice.water_amount || 0) },
+        { name: 'Dịch vụ', total: Number(invoice.other_amount || 0) },
+      ].filter((item) => item.total > 0)
+
+  const detailLines = lineItems
+    .map((item: any, index: number) => `${index + 1}. ${item.name}: ${formatCurrency(Number(item.total || 0))}`)
+    .join('\n')
+
+  const invoiceUrl = `${process.env.CLIENT_URL || 'http://localhost:5173'}/dashboard/invoices/${invoice.id}`
+
+  return [
+    `Xin chào ${tenant?.full_name || 'anh/chị'},`,
+    '',
+    `Hóa đơn phòng ${room?.name || ''} - ${house?.name || 'Khu trọ'}`,
+    `Kỳ cước: Tháng ${String(invoice.month).padStart(2, '0')}/${invoice.year}`,
+    `Mã HĐ: #${String(invoice.id).slice(0, 8).toUpperCase()}`,
+    '',
+    detailLines,
+    '',
+    `Tổng tiền: ${formatCurrency(Number(invoice.total_amount || 0))}`,
+    `Đã thanh toán: ${formatCurrency(Number(invoice.paid_amount || 0))}`,
+    `Còn lại: ${formatCurrency(remaining)}`,
+    `Hạn thanh toán: ${dueDate.toLocaleDateString('vi-VN')}`,
+    '',
+    `Xem chi tiết: ${invoiceUrl}`,
+    house?.phone ? `Liên hệ chủ nhà: ${house.phone}` : '',
+  ].filter(Boolean).join('\n')
+}
+
+router.post('/invoices/:id/send', async (req, res) => {
+  try {
+    const token = process.env.ZALO_OA_TOKEN
+    if (!token) {
+      return res.status(500).json({ error: 'Thiếu ZALO_OA_TOKEN' })
+    }
+
+    const authHeader = req.headers.authorization || ''
+    const accessToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : ''
+    if (!accessToken) {
+      return res.status(401).json({ error: 'Thiếu phiên đăng nhập' })
+    }
+
+    const { data: userData, error: userError } = await supabase.auth.getUser(accessToken)
+    if (userError || !userData.user) {
+      return res.status(401).json({ error: 'Phiên đăng nhập không hợp lệ' })
+    }
+
+    const invoice = await getInvoiceForZalo(req.params.id, userData.user.id)
+    if (!invoice) {
+      return res.status(404).json({ error: 'Không tìm thấy hóa đơn' })
+    }
+
+    const chatId = invoice.contracts?.tenant_records?.chat_id
+    if (!chatId) {
+      return res.status(400).json({ error: 'Khách thuê chưa liên kết Zalo' })
+    }
+
+    await sendMessageStrict(chatId, buildInvoiceMessage(invoice), token)
+    return res.json({ success: true })
+  } catch (error: any) {
+    console.error('Lỗi gửi hóa đơn qua Zalo:', error)
+    return res.status(500).json({ error: error.message || 'Không thể gửi hóa đơn qua Zalo' })
+  }
+})
 
 router.post('/webhook', async (req, res) => {
   try {

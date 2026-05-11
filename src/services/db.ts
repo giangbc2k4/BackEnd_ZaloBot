@@ -142,6 +142,35 @@ export async function getMeterReading(roomId: string, month: number, year: numbe
   return data;
 }
 
+export async function getInvoiceForZalo(invoiceId: string, ownerId: string) {
+  const { data, error } = await supabase
+    .from('invoices')
+    .select(`
+      *,
+      rooms(id, name, house_id, houses(id, name, address_detail, province, phone, owner_id)),
+      contracts(
+        id,
+        owner_id,
+        tenant_records(id, full_name, phone, chat_id)
+      )
+    `)
+    .eq('id', invoiceId)
+    .single();
+
+  if (error || !data) {
+    console.error(`Khong tim thay hoa don ${invoiceId}:`, error?.message);
+    return null;
+  }
+
+  const contractOwnerId = data.contracts?.owner_id;
+  const houseOwnerId = data.rooms?.houses?.owner_id;
+  if (contractOwnerId !== ownerId && houseOwnerId !== ownerId) {
+    return null;
+  }
+
+  return data;
+}
+
 /**
  * Tính toán và tạo hóa đơn tháng này
  */
