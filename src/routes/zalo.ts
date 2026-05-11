@@ -1,7 +1,7 @@
 import { Router } from 'express'
 import { checkGeminiKey } from '../services/ai/gemini.js'
 import { checkGroqKey, readMeterFromImageGroq } from '../services/ai/groq.js'
-import { sendMessage } from '../services/zalo/api.js'
+import { sendMessage, sendPhoto } from '../services/zalo/api.js'
 import { getState, setState } from '../services/state.js'
 import { getTenantProfileByChatId, findTenantByPhone, linkChatIdToProfile, upsertMeterReading, getMeterReading, getInvoiceForZalo } from '../services/db.js'
 import { supabase } from '../config/supabase.js'
@@ -98,6 +98,53 @@ router.post('/invoices/:id/send', async (req, res) => {
   } catch (error: any) {
     console.error('Lỗi gửi hóa đơn qua Zalo:', error)
     return res.status(500).json({ error: error.message || 'Không thể gửi hóa đơn qua Zalo' })
+  }
+})
+
+router.post('/invoices/:id/send-photo', async (req, res) => {
+  try {
+    const token = process.env.ZALO_OA_TOKEN
+    if (!token) {
+      return res.status(500).json({ error: 'Thiếu ZALO_OA_TOKEN' })
+    }
+
+    const authHeader = req.headers.authorization || ''
+    const accessToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : ''
+    if (!accessToken) {
+      return res.status(401).json({ error: 'Thiếu phiên đăng nhập' })
+    }
+
+    const { data: userData, error: userError } = await supabase.auth.getUser(accessToken)
+    if (userError || !userData.user) {
+      return res.status(401).json({ error: 'Phiên đăng nhập không hợp lệ' })
+    }
+
+    const invoice = await getInvoiceForZalo(req.params.id, userData.user.id)
+    if (!invoice) {
+      return res.status(404).json({ error: 'Không tìm thấy hóa đơn' })
+    }
+
+    const { imageUrl } = req.body || {}
+    if (!imageUrl || typeof imageUrl !== 'string' || !/^https?:\/\//.test(imageUrl)) {
+      return res.status(400).json({ error: 'Thiếu URL ảnh hóa đơn hợp lệ' })
+    }
+
+    const chatId = invoice.contracts?.tenant_records?.chat_id
+    if (!chatId) {
+      return res.status(400).json({ error: 'Khách thuê chưa liên kết Zalo' })
+    }
+
+    const caption = [
+      `Hóa đơn phòng ${invoice.rooms?.name || ''}`,
+      `Kỳ cước: Tháng ${String(invoice.month).padStart(2, '0')}/${invoice.year}`,
+      `Tổng tiền: ${formatCurrency(Number(invoice.total_amount || 0))}`,
+    ].join('\n')
+
+    await sendPhoto(chatId, imageUrl, caption, token)
+    return res.json({ success: true })
+  } catch (error: any) {
+    console.error('Lỗi gửi ảnh hóa đơn qua Zalo:', error)
+    return res.status(500).json({ error: error.message || 'Không thể gửi ảnh hóa đơn qua Zalo' })
   }
 })
 
