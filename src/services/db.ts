@@ -129,6 +129,19 @@ export async function upsertMeterReading(params: {
   }
 }
 
+export async function getMeterReading(roomId: string, month: number, year: number) {
+  const { data, error } = await supabase
+    .from('meter_readings')
+    .select('*')
+    .eq('room_id', roomId)
+    .eq('month', month)
+    .eq('year', year)
+    .maybeSingle();
+
+  if (error) throw error;
+  return data;
+}
+
 /**
  * Tính toán và tạo hóa đơn tháng này
  */

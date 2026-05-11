@@ -3,7 +3,7 @@ import { checkGeminiKey } from '../services/ai/gemini.js'
 import { checkGroqKey, readMeterFromImageGroq } from '../services/ai/groq.js'
 import { sendMessage } from '../services/zalo/api.js'
 import { getState, setState } from '../services/state.js'
-import { getTenantProfileByChatId, findTenantByPhone, linkChatIdToProfile, upsertMeterReading } from '../services/db.js'
+import { getTenantProfileByChatId, findTenantByPhone, linkChatIdToProfile, upsertMeterReading, getMeterReading } from '../services/db.js'
 
 const router = Router()
 
@@ -206,17 +206,36 @@ router.post('/webhook', async (req, res) => {
         return
       }
 
-      // ── STATE: IDLE → đọc số thôi ──
+      // ── TEST MODE: mọi ảnh từ tenant đã liên kết đều đẩy lên web ──
       await sendMessage(chatId, "⏳ Đang phân tích ảnh bằng AI...", botToken)
       const result = await readMeterFromImageGroq(imageUrl)
-      if (result && result.chi_so) {
+      if (!result || !result.chi_so) {
+        await sendMessage(chatId, "❌ Không đọc được số từ ảnh này.", botToken)
+        return
+      }
+
+      const currentReading = await getMeterReading(room.id, month, year)
+      const hasElectricImage = Boolean(currentReading?.image_electric_url)
+      const hasWaterImage = Boolean(currentReading?.image_water_url)
+      const shouldSaveAsElectric = !hasElectricImage || hasWaterImage
+
+      if (shouldSaveAsElectric) {
+        await upsertMeterReading({ roomId: room.id, month, year, electricNew: result.chi_so, imageElectricUrl: imageUrl })
+        await setState(chatId, 'WAIT_WATER')
         await sendMessage(chatId,
-          `✅ Đọc được chỉ số: ${result.chi_so}\n\nℹ️ Bot sẽ nhắc bạn vào đầu tháng để ghi nhận chính thức!`,
+          `✅ Đã gửi ảnh ĐIỆN và chỉ số ${result.chi_so} kWh lên hệ thống để chủ nhà xác nhận.\n\n` +
+          `📸 Gửi tiếp ảnh đồng hồ NƯỚC nếu muốn test đủ bộ.`,
           botToken
         )
-      } else {
-        await sendMessage(chatId, "❌ Không đọc được số từ ảnh này.", botToken)
+        return
       }
+
+      await upsertMeterReading({ roomId: room.id, month, year, waterNew: result.chi_so, imageWaterUrl: imageUrl })
+      await setState(chatId, 'IDLE')
+      await sendMessage(chatId,
+        `✅ Đã gửi ảnh NƯỚC và chỉ số ${result.chi_so} m³ lên hệ thống để chủ nhà xác nhận.`,
+        botToken
+      )
     }
   } catch (error) {
     console.error("Lỗi webhook:", error)
