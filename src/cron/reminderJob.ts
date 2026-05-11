@@ -23,9 +23,9 @@ export function startReminderJob() {
       // Lấy danh sách tenant đang có hợp đồng active + có chat_id
       const { data: tenants, error } = await supabase
         .from('contracts')
-        .select('*, rooms(name), profiles!inner(full_name, chat_id)')
+        .select('*, rooms(name), tenant_records!inner(full_name, chat_id)')
         .eq('status', 'active')
-        .not('profiles.chat_id', 'is', null)
+        .not('tenant_records.chat_id', 'is', null)
 
       if (error) {
         console.error('[Cron] Lỗi truy vấn DB:', error)
@@ -43,9 +43,9 @@ export function startReminderJob() {
       let sentCount = 0
 
       for (const tenant of tenants) {
-        const chatId = (tenant as any).profiles?.chat_id
+        const chatId = (tenant as any).tenant_records?.chat_id
         const roomName = (tenant as any).rooms?.name || 'N/A'
-        const tenantName = (tenant as any).profiles?.full_name || 'Bạn'
+        const tenantName = (tenant as any).tenant_records?.full_name || 'Bạn'
 
         if (!chatId) continue
 

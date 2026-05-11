@@ -5,10 +5,9 @@ import { supabase } from '../config/supabase.js';
  */
 export async function getTenantProfileByChatId(chatId: string) {
   const { data, error } = await supabase
-    .from('profiles')
-    .select('*, contracts!inner(*, rooms(*))')
+    .from('tenant_records')
+    .select('*, contracts!contracts_tenant_record_id_fkey!inner(*, rooms(*))')
     .eq('chat_id', chatId)
-    .eq('role', 'tenant')
     .eq('contracts.status', 'active')
     .single();
 
@@ -27,9 +26,8 @@ export async function findTenantByPhone(phone: string) {
   const cleanPhone = phone.replace(/[\s\.\-]/g, '');
 
   const { data, error } = await supabase
-    .from('profiles')
-    .select('*, contracts!inner(*, rooms(*))')
-    .eq('role', 'tenant')
+    .from('tenant_records')
+    .select('*, contracts!contracts_tenant_record_id_fkey!inner(*, rooms(*))')
     .eq('contracts.status', 'active')
     .or(`phone.eq.${cleanPhone},phone.eq.0${cleanPhone},phone.eq.+84${cleanPhone.replace(/^0/, '')}`)
     .is('chat_id', null) // Chỉ tìm những ai chưa liên kết Zalo
@@ -47,7 +45,7 @@ export async function findTenantByPhone(phone: string) {
  */
 export async function linkChatIdToProfile(profileId: string, chatId: string) {
   const { error } = await supabase
-    .from('profiles')
+    .from('tenant_records')
     .update({ chat_id: chatId })
     .eq('id', profileId);
 
@@ -71,6 +69,9 @@ export async function upsertMeterReading(params: {
   waterNew?: number;
   imageWaterUrl?: string;
 }) {
+  const prevMonth = params.month === 1 ? 12 : params.month - 1;
+  const prevYear = params.month === 1 ? params.year - 1 : params.year;
+
   // Tìm xem tháng này đã có bản ghi chưa
   let { data: existing } = await supabase
     .from('meter_readings')
@@ -87,6 +88,9 @@ export async function upsertMeterReading(params: {
     if (params.imageElectricUrl) payload.image_electric_url = params.imageElectricUrl;
     if (params.waterNew !== undefined) payload.water_new = params.waterNew;
     if (params.imageWaterUrl) payload.image_water_url = params.imageWaterUrl;
+    payload.status = 'pending';
+    payload.source = 'zalo_bot';
+    payload.submitted_at = new Date().toISOString();
 
     const { error } = await supabase
       .from('meter_readings')
@@ -95,6 +99,14 @@ export async function upsertMeterReading(params: {
     
     if (error) throw error;
   } else {
+    const { data: prevReading } = await supabase
+      .from('meter_readings')
+      .select('electric_new, water_new')
+      .eq('room_id', params.roomId)
+      .eq('month', prevMonth)
+      .eq('year', prevYear)
+      .maybeSingle();
+
     // Insert mới
     const { error } = await supabase
       .from('meter_readings')
@@ -102,10 +114,15 @@ export async function upsertMeterReading(params: {
         room_id: params.roomId,
         month: params.month,
         year: params.year,
-        electric_new: params.electricNew || 0,
+        electric_old: prevReading?.electric_new || 0,
+        electric_new: params.electricNew ?? prevReading?.electric_new ?? 0,
         image_electric_url: params.imageElectricUrl || null,
-        water_new: params.waterNew || 0,
+        water_old: prevReading?.water_new || 0,
+        water_new: params.waterNew ?? prevReading?.water_new ?? 0,
         image_water_url: params.imageWaterUrl || null,
+        status: 'pending',
+        source: 'zalo_bot',
+        submitted_at: new Date().toISOString(),
       });
     
     if (error) throw error;

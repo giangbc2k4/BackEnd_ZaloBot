@@ -1,10 +1,9 @@
 import { Router } from 'express'
 import { checkGeminiKey } from '../services/ai/gemini.js'
 import { checkGroqKey, readMeterFromImageGroq } from '../services/ai/groq.js'
-import { sendMessage, sendPhoto } from '../services/zalo/api.js'
+import { sendMessage } from '../services/zalo/api.js'
 import { getState, setState } from '../services/state.js'
-import { getTenantProfileByChatId, findTenantByPhone, linkChatIdToProfile, upsertMeterReading, calculateInvoice } from '../services/db.js'
-import { buildVietQR, formatInvoiceCaption } from '../services/payment/vietqr.js'
+import { getTenantProfileByChatId, findTenantByPhone, linkChatIdToProfile, upsertMeterReading } from '../services/db.js'
 
 const router = Router()
 
@@ -197,19 +196,13 @@ router.post('/webhook', async (req, res) => {
         }
 
         await upsertMeterReading({ roomId: room.id, month, year, waterNew: result.chi_so, imageWaterUrl: imageUrl })
-        const invoice = await calculateInvoice(room.id, contract.id, month, year)
-
-        const qrUrl = buildVietQR({ roomName: room.name, month, year, totalAmount: invoice.total_amount })
-        const caption = formatInvoiceCaption({
-          roomName: room.name, month, year,
-          rentAmount: invoice.rent_amount,
-          electricAmount: invoice.electric_amount,
-          waterAmount: invoice.water_amount,
-          totalAmount: invoice.total_amount
-        })
-
-        await sendPhoto(chatId, qrUrl, caption, botToken)
-        await setState(chatId, 'WAIT_PAYMENT')
+        await sendMessage(chatId,
+          `✅ Nước: ${result.chi_so} m³\n\n` +
+          `📨 Bot đã gửi ảnh và chỉ số điện/nước lên hệ thống.\n` +
+          `Chủ nhà sẽ kiểm tra và chốt số trước khi tạo hóa đơn.`,
+          botToken
+        )
+        await setState(chatId, 'IDLE')
         return
       }
 
