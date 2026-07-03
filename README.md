@@ -1,20 +1,20 @@
 # BackEnd_ZaloBot
 
-TypeScript backend for a rental-house management project with Zalo bot routes, OCR, AI assistants, payment helpers, scheduled reminders, and Supabase integration.
+Backend TypeScript cho hệ thống quản lý nhà trọ, tích hợp Zalo Bot, OCR, trợ lý AI, thanh toán, nhắc lịch và Supabase.
 
-## Features
+## Tính năng
 
-- Express API server.
-- Zalo route handlers.
-- OCR route for extracting information from uploaded content.
-- AI service integrations with Gemini and Groq.
-- Supabase database client.
-- Redis support through `ioredis`.
-- VietQR payment helper.
-- Scheduled reminder job with `node-cron`.
-- Environment-based configuration.
+- Máy chủ API Express.
+- Route xử lý Zalo.
+- Route OCR trích xuất thông tin từ nội dung tải lên.
+- Tích hợp AI Gemini và Groq.
+- Kết nối cơ sở dữ liệu Supabase.
+- Hỗ trợ Redis qua `ioredis`.
+- Tiện ích thanh toán VietQR.
+- Công việc nhắc lịch bằng `node-cron`.
+- Cấu hình qua biến môi trường.
 
-## Tech Stack
+## Công nghệ
 
 - Node.js
 - TypeScript
@@ -25,7 +25,7 @@ TypeScript backend for a rental-house management project with Zalo bot routes, O
 - Groq API
 - VietQR
 
-## Project Structure
+## Cấu trúc dự án
 
 ```text
 src/index.ts                 Server entry point
@@ -37,16 +37,16 @@ src/config/supabase.ts       Supabase client config
 src/cron/reminderJob.ts      Scheduled reminder job
 ```
 
-## Getting Started
+## Cài đặt và chạy
 
 ```bash
 npm install
 npm run dev
 ```
 
-## Environment Variables
+## Biến môi trường
 
-Copy `.env.example` to `.env` and fill in the required credentials for:
+Sao chép `.env.example` thành `.env` và điền thông tin cần thiết cho:
 
 - Supabase
 - Zalo API
@@ -54,9 +54,9 @@ Copy `.env.example` to `.env` and fill in the required credentials for:
 - Redis
 - Payment/VietQR settings
 
-Keep production secrets out of the repository.
+Không đưa secret production vào repository.
 
-## Scripts
+## Lệnh npm
 
 ```bash
 npm run dev
@@ -64,18 +64,18 @@ npm run build
 npm run start
 ```
 
-## API Areas
+## Các nhóm API
 
 - `src/routes/zalo.ts`: Zalo webhook/API handling.
 - `src/routes/ocr.ts`: OCR endpoint.
 - `src/services/db.ts`: database operations.
 - `src/services/state.ts`: runtime state helpers.
 
-## Roadmap
+## Hướng phát triển
 
-- Add endpoint documentation with request/response examples.
-- Add deployment instructions.
-- Add basic tests for routes and services.
+- Bổ sung tài liệu endpoint cùng ví dụ request/response.
+- Bổ sung hướng dẫn triển khai theo hạ tầng thực tế.
+- Thêm kiểm thử cho route và service.
 
 ## Luồng xử lý chính
 
