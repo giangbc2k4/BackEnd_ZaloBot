@@ -173,7 +173,7 @@ router.post('/webhook', async (req, res) => {
     }
 
     // ─── XỬ LÝ GỬI TEXT ─────────────────────────────────
-    if (update.event_name === 'message.text.received' || msg.text) {
+    if (update.event_name === 'message.text.received') {
       const text = (msg.text || '').trim()
       if (!text) return
 
@@ -271,10 +271,9 @@ router.post('/webhook', async (req, res) => {
         botToken
       )
       return
-    }
 
     // ─── XỬ LÝ GỬI ẢNH ─────────────────────────────────
-    if (update.event_name === 'message.image.received' && msg.photo_url) {
+    } else if (update.event_name === 'message.image.received' && msg.photo_url) {
       if (!process.env.GROQ_API_KEY) {
         await sendMessage(chatId, "⚠️ Bot chưa được cấu hình GROQ_API_KEY.", botToken)
         return
